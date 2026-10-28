@@ -1,0 +1,94 @@
+<!-- ส่วนของกอล์ฟ: หัวข้อใบงานและทางลัดไปหน้าแสดงเส้นทาง -->
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">DELIVERY WORKSHEET</span>
+    <h1>ใบงานจัดกลุ่มไรเดอร์</h1>
+    <p>แสดงเฉพาะใบงานที่ยังมีออเดอร์รอจัดส่ง ใบงานที่ส่งครบหรือไม่มีออเดอร์จะถูกซ่อน</p>
+  </div>
+  <div class="toolbar">
+    <a class="button button-light" routerLink="/routes">ดูแผนที่เส้นทาง →</a>
+    <a class="button button-primary sheets-accept-button" routerLink="/rider">รับงาน</a>
+  </div>
+</section>
+
+@if (error()) {
+  <div class="alert error">{{ error() }}<button class="button button-ghost" (click)="load()">ลองอีกครั้ง</button></div>
+}
+<!-- ส่วนของกอล์ฟ: แสดงเงื่อนไขที่ระบบใช้จัดไรเดอร์อัตโนมัติ -->
+<section class="worksheet-controls panel">
+  <div>
+    <span class="eyebrow">AUTOMATIC RIDER ASSIGNMENT</span>
+    <strong>ระบบจัดกลุ่มไรเดอร์อัตโนมัติ</strong>
+    <small>ระบบจะพยายามเพิ่มออเดอร์เข้าใบงานเดิมก่อน เมื่อไรเดอร์ยังมีออเดอร์ที่กำลังจัดส่งไม่ครบ 3 รายการ และจุดส่งใหม่อยู่ห่างจากจุดส่งในใบงานเดิมไม่เกิน 1 กม. หากไม่มีไรเดอร์ที่เข้าเงื่อนไขจึงสร้างใบงานใหม่ พร้อมเลขใบงาน (work_id) อัตโนมัติ</small>
+  </div>
+</section>
+
+<!-- ส่วนของกอล์ฟ: สรุปจำนวนออเดอร์ กล่อง และใบงานที่บันทึกแล้ว -->
+<section class="order-summary" aria-label="สรุปงานจัดส่ง">
+  <article><span>ออเดอร์ที่ยังต้องจัดส่ง</span><strong>{{ orderCount() }}</strong></article>
+  <article><span>จำนวนกล่อง</span><strong>{{ totalBoxes() }}</strong></article>
+  <article><span>จำนวนใบงาน</span><strong>{{ works().length }}</strong></article>
+</section>
+
+@if (loading()) {
+  <section class="panel empty-state tall">กำลังโหลดใบงาน...</section>
+} @else if (works().length === 0 && !error()) {
+  <section class="panel empty-state tall">
+    ไม่มีใบงานที่ยังมีออเดอร์รอจัดส่งในขณะนี้<br />
+    <a class="button button-primary" routerLink="/orders">ไปจัดการออเดอร์</a>
+  </section>
+} @else {
+  <!-- ส่วนของกอล์ฟ: ใบงานจริง แยกตาม work_id ที่ฐานข้อมูลสร้างให้อัตโนมัติ -->
+  <section class="rider-sheet-list">
+    @for (sheet of works(); track sheet.workId) {
+      <article class="panel rider-sheet" [style.--route-color]="sheet.color">
+        <header class="rider-sheet-heading">
+          <div class="rider-heading-title">
+            <span class="route-number">{{ sheet.workId }}</span>
+            <div>
+              <span class="eyebrow">WORK ID · เลขใบงาน</span>
+              <h2>ใบงาน #{{ sheet.workId }}</h2>
+              <small class="worksheet-rider-name">{{ sheet.riderName || ('ไรเดอร์รหัส ' + (sheet.riderId ?? '-')) }}</small>
+            </div>
+          </div>
+          <a class="text-link" routerLink="/routes">ดูเส้นทาง →</a>
+        </header>
+        <div class="rider-sheet-stats">
+          <span><strong>{{ sheet.orders.length }} / 3</strong> ออเดอร์</span>
+          <span><strong>{{ sheet.totalBoxes }}</strong> กล่อง</span>
+        </div>
+        @if (sheet.orders.length) {
+          <div class="table-wrap">
+            <table class="worksheet-table">
+              <thead><tr><th>ลำดับ</th><th>ลูกค้า / ที่อยู่</th><th>โทรศัพท์</th><th>รายการอาหาร</th><th>กล่อง</th><th>ยอดขาย</th><th>สถานะออเดอร์</th><th>แผนที่</th></tr></thead>
+              <tbody>
+                @for (order of sheet.orders; track order.order_id; let i = $index) {
+                  <tr>
+                    <td><span class="stop-number" [style.background]="sheet.color">{{ i + 1 }}</span></td>
+                    <td><strong class="customer-name">{{ order.customer_name }}</strong><small class="worksheet-address">{{ order.address?.trim() || "ยังไม่ได้ระบุที่อยู่ — ดูพิกัดในแผนที่" }}</small></td>
+                    <td><a class="worksheet-phone" [href]="'tel:' + order.phone_number">{{ order.phone_number }}</a></td>
+                    <td><div class="worksheet-items">@for (item of order.items; track item.order_detail_id) { <span>{{ item.food_name }} × {{ item.quantity }}</span> }</div></td>
+                    <td>{{ order.total_boxes }}</td>
+                    <td><strong>{{ order.total_sales | number: "1.0-0" }} ฿</strong></td>
+                    <td><span class="status-pill" [ngClass]="statusClass(order.status)">{{ statusLabel(order.status) }}</span></td>
+                    <td><a class="coordinate-link" [href]="'https://www.google.com/maps/search/?api=1&query=' + order.latitude + ',' + order.longitude" target="_blank" rel="noopener noreferrer">เปิดแผนที่ ↗</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="empty-rider">ยังไม่มีจุดส่งในรอบนี้</p>
+        }
+      </article>
+    }
+  </section>
+}
+
+<!-- ส่วนของกอล์ฟ: แจ้งออเดอร์ที่พิกัดไม่ถูกต้องและลิงก์ไปแก้ข้อมูลลูกค้า -->
+@if (planner.plan().invalidOrders.length) {
+  <section class="alert error">
+    มี {{ planner.plan().invalidOrders.length }} ออเดอร์ที่ยังจัดเส้นทางไม่ได้ เพราะพิกัดไม่ถูกต้อง กรุณาแก้ไขข้อมูลลูกค้าก่อน
+    <a class="text-link" routerLink="/customers">ตรวจสอบลูกค้า →</a>
+  </section>
+}

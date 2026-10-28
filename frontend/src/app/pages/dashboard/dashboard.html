@@ -1,0 +1,93 @@
+<section class="welcome">
+  <div>
+    <span class="eyebrow">DASHBOARD · ส่งด่วนมื้อเที่ยง</span>
+    <h1>จัดการร้านวันนี้ให้ง่ายขึ้น</h1>
+    <p>ลูกค้า ออเดอร์ และการจัดส่งของคุณ อยู่ในที่เดียว</p>
+  </div>
+  <a class="button button-primary" routerLink="/orders">＋ สร้างออเดอร์</a>
+</section>
+@if (error()) {
+  <div class="alert error">
+    {{ error() }}
+    <button class="button button-ghost" (click)="load()">ลองอีกครั้ง</button>
+  </div>
+}
+<section class="stat-grid">
+  <article class="stat-card">
+    <span class="stat-icon mint">♙</span><span class="stat-label">ลูกค้าทั้งหมด</span
+    ><strong>{{ customers().length }}</strong
+    ><small>รายชื่อในระบบ</small>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon peach">▤</span><span class="stat-label">ออเดอร์ทั้งหมด</span
+    ><strong>{{ orders().length }}</strong
+    ><small>รวมออเดอร์จำลอง</small>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon gold">◉</span><span class="stat-label">กล่องที่ต้องจัดส่ง</span
+    ><strong>{{ boxCount() }}</strong
+    ><small>จากออเดอร์ที่บันทึกไว้</small>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon lavender">฿</span><span class="stat-label">ยอดขายรวม</span
+    ><strong>{{ sales() | number: "1.0-0" }}</strong
+    ><small>บาท · ตามออเดอร์ทั้งหมด</small>
+  </article>
+</section>
+<section class="dashboard-grid">
+  <article class="panel">
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">LATEST ACTIVITY</span>
+        <h2>ออเดอร์ล่าสุด</h2>
+      </div>
+      <a class="text-link" routerLink="/orders">ดูทั้งหมด →</a>
+    </div>
+    @if (orders().length) {
+      <div class="recent-list">
+        @for (order of orders().slice(0, 5); track order.order_id) {
+          <div class="recent-row">
+            <span class="avatar">{{ order.customer_name.charAt(0) }}</span>
+            <div class="recent-info">
+              <strong>{{ order.customer_name }}</strong
+              ><small>#{{ order.order_id }} · {{ order.items.length }} เมนู</small>
+            </div>
+            <span class="order-amount">{{ order.total_boxes }} กล่อง</span
+            ><strong class="amount">{{ order.total_sales | number: "1.0-0" }} ฿</strong>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">ยังไม่มีออเดอร์ เริ่มจากสร้างออเดอร์แรกของคุณ</div>
+    }
+  </article>
+  <article class="panel menu-panel">
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">TODAY'S MENU</span>
+        <h2>เมนูที่พร้อมขาย</h2>
+      </div>
+      <span class="soft-badge">{{ foods().length }} เมนู</span>
+    </div>
+    @for (food of foods(); track food.food_id) {
+      <div class="menu-row">
+        <span class="food-dot">✦</span><span>{{ food.name }}</span
+        ><strong>{{ food.price }} ฿</strong>
+      </div>
+    }
+    @if (!foods().length) {
+      <div class="empty-state">เพิ่มเมนูผ่าน API เพื่อเริ่มต้นขาย</div>
+    }
+  </article>
+</section>
+<section class="quick-links">
+  <a routerLink="/customers"
+    ><span class="quick-icon mint">♙</span
+    ><span><strong>จัดการลูกค้า</strong><small>ข้อมูลติดต่อและตำแหน่งบ้าน</small></span
+    ><b>→</b></a
+  ><a routerLink="/orders"
+    ><span class="quick-icon peach">▤</span
+    ><span><strong>จัดการออเดอร์</strong><small>สร้าง แก้จำนวน และลบรายการ</small></span
+    ><b>→</b></a
+  >
+</section>

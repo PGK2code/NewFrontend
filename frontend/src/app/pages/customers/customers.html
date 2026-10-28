@@ -1,0 +1,127 @@
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">CUSTOMER DIRECTORY</span>
+    <h1>ลูกค้าของเรา</h1>
+    <p>เก็บข้อมูลติดต่อและพิกัดบ้าน เพื่อส่งมื้ออร่อยถึงที่</p>
+  </div>
+  <button class="button button-primary" (click)="openCreate()">＋ เพิ่มลูกค้า</button>
+</section>
+@if (notice()) {
+  <div class="alert" [class.error]="isError()">{{ notice() }}<button (click)="notice.set('')">×</button></div>
+}
+<section class="filter-bar panel">
+  <span class="search-icon">⌕</span
+  ><input class="search-input" placeholder="ค้นหาชื่อ เบอร์โทร หรือที่อยู่..." [(ngModel)]="query" /><span
+    class="result-count"
+    >{{ filtered().length }} ราย</span
+  >
+</section>
+<section class="panel customer-table-panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ลูกค้า</th>
+          <th>เบอร์โทร</th>
+          <th>ที่อยู่</th>
+          <th>พิกัดบ้าน</th>
+          <th class="align-right">จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (customer of filtered(); track customer.customer_id) {
+          <tr>
+            <td>
+              <div class="person-cell">
+                <span class="avatar">{{ customer.first_name.charAt(0) }}</span
+                ><span
+                  ><strong>{{ customer.first_name }} {{ customer.last_name }}</strong
+                  ><small>ลูกค้า #{{ customer.customer_id }}</small></span
+                >
+              </div>
+            </td>
+            <td>{{ customer.phone_number }}</td>
+            <td class="address-cell">
+              {{ customer.address || "ไม่ได้ระบุที่อยู่" }}
+            </td>
+            <td>
+              <a class="coordinate-link" target="_blank" [href]="mapLink(customer)"
+                >⌖ {{ customer.latitude | number: "1.4-4" }}, {{ customer.longitude | number: "1.4-4" }}</a
+              >
+            </td>
+            <td class="actions align-right">
+              <button class="icon-button" title="แก้ไข" (click)="openEdit(customer)">✎</button
+              ><button class="icon-button danger-icon" title="ลบ" (click)="remove(customer)">⌫</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">ไม่พบข้อมูลลูกค้า ลองค้นหาด้วยคำอื่นหรือเพิ่มลูกค้าใหม่</div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+@if (editing()) {
+  <div class="modal-backdrop" (click)="close()">
+    <section class="modal customer-modal" (click)="$event.stopPropagation()">
+      <div class="modal-heading">
+        <div>
+          <span class="eyebrow">CUSTOMER DETAILS</span>
+          <h2>{{ editingId() ? "แก้ไขข้อมูลลูกค้า" : "เพิ่มลูกค้าใหม่" }}</h2>
+        </div>
+        <button class="icon-button" (click)="close()">×</button>
+      </div>
+      <form (ngSubmit)="save()">
+        <div class="form-grid">
+          <label>ชื่อ<input name="first" required [(ngModel)]="draft.first_name" placeholder="ชื่อจริง" /></label
+          ><label>นามสกุล<input name="last" required [(ngModel)]="draft.last_name" placeholder="นามสกุล" /></label
+          ><label
+            >เบอร์โทรศัพท์<input
+              name="phone"
+              required
+              type="tel"
+              [(ngModel)]="draft.phone_number"
+              placeholder="08X-XXX-XXXX" /></label
+          ><label
+            >ที่อยู่<label class="sr-only" for="address">ที่อยู่</label
+            ><input id="address" name="address" [(ngModel)]="draft.address" placeholder="บ้านเลขที่ ถนน แขวง/ตำบล"
+          /></label>
+        </div>
+        <div class="map-caption"><strong>⌖ ปักหมุดบ้านลูกค้า</strong><span>คลิกบนแผนที่เพื่อเลือกตำแหน่ง</span></div>
+        <div #mapHost class="map-host"></div>
+        <div class="coordinate-fields">
+          <label
+            >ละติจูด<input
+              type="number"
+              step="any"
+              name="lat"
+              required
+              [(ngModel)]="draft.latitude"
+              (ngModelChange)="syncMarker()" /></label
+          ><label
+            >ลองจิจูด<input
+              type="number"
+              step="any"
+              name="lng"
+              required
+              [(ngModel)]="draft.longitude"
+              (ngModelChange)="syncMarker()" /></label
+          ><button type="button" class="button button-light" (click)="locate()">◎ ตำแหน่งของฉัน</button>
+        </div>
+        @if (notice()) {
+          <div class="inline-error">{{ notice() }}</div>
+        }
+        <footer class="modal-footer">
+          <button type="button" class="button button-light" (click)="close()">ยกเลิก</button
+          ><button class="button button-primary" [disabled]="saving()">
+            {{ saving() ? "กำลังบันทึก..." : "บันทึกข้อมูล" }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

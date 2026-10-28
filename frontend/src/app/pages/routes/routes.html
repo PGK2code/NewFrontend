@@ -1,0 +1,144 @@
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">DELIVERY ROUTES</span>
+    <h1>เส้นทางจัดส่ง</h1>
+    <p>ดูเส้นทางและลำดับจุดส่ง แยกสีตามไรเดอร์ พร้อมยอดของแต่ละออเดอร์</p>
+  </div>
+  <div class="toolbar">
+    <button class="button button-primary" (click)="recalculate()" [disabled]="loading()">{{ loading() ? "กำลังคำนวณ..." : "↻ คำนวณเส้นทางใหม่" }}</button>
+    <a class="button button-light" routerLink="/sheets">← ใบงานไรเดอร์</a>
+  </div>
+</section>
+
+@if (error()) {
+  <div class="alert error">{{ error() }}<button class="button button-ghost" (click)="load()">ลองโหลดออเดอร์ใหม่</button></div>
+}
+@if (notice()) {
+  <div class="alert">{{ notice() }}</div>
+}
+<section class="route-layout">
+  <article class="panel route-map-panel">
+    <div class="panel-heading route-map-heading">
+      <div><span class="eyebrow">ROUTE OVERVIEW</span><h2>{{ mapMode() === 'all' ? 'แผนที่เส้นทางทั้งหมด' : 'เส้นทางไรเดอร์ ' + selectedRider() }}</h2></div>
+      <span class="soft-badge">{{ loading() ? "กำลังโหลด..." : (mapMode() === 'all' ? planner.plan().routes.length + " เส้นทาง" : "1 ไรเดอร์") }}</span>
+    </div>
+    <div class="map-mode-switch" role="group" aria-label="เลือกมุมมองแผนที่">
+      <button class="button" [class.button-primary]="mapMode() === 'all'" [class.button-light]="mapMode() !== 'all'" (click)="setMapMode('all')">ภาพรวมทุกเส้นทาง</button>
+      <button class="button" [class.button-primary]="mapMode() === 'selected'" [class.button-light]="mapMode() !== 'selected'" (click)="setMapMode('selected')">เฉพาะไรเดอร์ที่เลือก</button>
+    </div>
+    @if (mapError()) { <div class="map-error" aria-live="polite">{{ mapError() }}</div> }
+    <div #mapHost class="delivery-map" aria-label="แผนที่เส้นทางจัดส่ง"></div>
+    <div class="map-legend">
+      <span><i class="depot-legend"></i>จุดเริ่มต้น</span>
+      @for (route of visibleMapRoutes(); track route.riderNumber) {
+        <button [class.selected]="route.riderNumber === selectedRider()" (click)="selectRoute(route.riderNumber)">
+          <i [style.background]="route.color"></i>ไรเดอร์ {{ route.riderNumber }}
+        </button>
+      }
+    </div>
+    <p class="helper-note">เส้นทางบนแผนที่อ้างอิงถนนจาก OSRM โดยส่งพิกัดจุดส่งไปยังบริการสาธารณะ</p>
+  </article>
+
+  <aside class="route-side">
+    <article class="panel route-overview-panel">
+      <div class="panel-heading"><div><span class="eyebrow">RIDER ASSIGNMENT</span><h2>สรุปแต่ละรอบ</h2></div></div>
+      @for (route of planner.plan().routes; track route.riderNumber) {
+        <button class="route-card" [class.active]="route.riderNumber === selectedRider()" [style.--route-color]="route.color" (click)="selectRoute(route.riderNumber)">
+          <span class="route-card-dot"></span>
+          <span class="route-card-body"><strong>ไรเดอร์ {{ route.riderNumber }}</strong><small>{{ route.orders.length }} ออเดอร์ · {{ route.totalBoxes }} กล่อง</small></span>
+          <strong class="route-order-count">{{ route.orders.length }} ออเดอร์</strong>
+        </button>
+      }
+      @if (!planner.plan().routes.length && !loading()) {
+        <div class="empty-state">ยังไม่มีออเดอร์ที่รอจัดส่ง</div>
+      }
+    </article>
+
+    @if (selectedRoute(); as route) {
+      <article class="panel route-detail-panel">
+        <div class="panel-heading"><div><span class="eyebrow">RIDER {{ route.riderNumber }} · DELIVERY STOPS</span><h2>ลำดับจุดส่ง</h2></div></div>
+        <ol class="route-stop-list">
+          @for (order of route.orders; track order.order_id; let i = $index) {
+            <li>
+              <span class="stop-number" [style.background]="route.color">{{ i + 1 }}</span>
+              <span class="route-stop-info">
+                <strong>{{ order.customer_name }}</strong>
+                <small>ออเดอร์ #{{ order.order_id }} · {{ order.total_boxes }} กล่อง · {{ order.phone_number }}</small>
+                <span class="route-order-items">
+                  @for (item of order.items; track item.order_detail_id) {
+                    {{ item.food_name }} × {{ item.quantity }}{{ !$last ? " · " : "" }}
+                  }
+                </span>
+                <strong class="route-order-sales">{{ order.total_sales | number: "1.0-0" }} ฿</strong>
+              </span>
+            </li>
+          }
+        </ol>
+        @if (!route.orders.length) { <div class="empty-state">ยังไม่มีจุดส่งในรอบนี้</div> }
+      </article>
+    }
+  </aside>
+</section>
+
+<section class="panel route-finance-panel">
+  @let finance = overallFinance();
+  <div class="panel-heading">
+    <div><span class="eyebrow">COST & DELIVERY ESTIMATE</span><h2>{{ mapMode() === 'all' ? 'ภาพรวมค่าใช้จ่ายไรเดอร์ทุกคน' : 'ภาพรวมค่าใช้จ่ายไรเดอร์ ' + selectedRider() }}</h2><p class="helper-note">{{ mapMode() === 'all' ? 'แสดงยอดรวมของทุกเส้นทาง' : 'แสดงเฉพาะค่าใช้จ่ายและกำไรของเส้นทางไรเดอร์ที่เลือก' }}</p></div>
+    <span class="soft-badge">เริ่มส่ง 11:30 · กำหนดถึง 12:30</span>
+  </div>
+  <div class="route-finance-grid">
+    <div class="finance-stat"><span>ยอดขายรวม</span><strong>{{ finance.revenue | number: "1.0-0" }} ฿</strong></div>
+    <div class="finance-stat"><span>ต้นทุนอาหาร (40 ฿/กล่อง)</span><strong>{{ finance.foodCost | number: "1.0-0" }} ฿</strong></div>
+    <div class="finance-stat"><span>ค่าส่งรวมโดยประมาณ</span><strong>{{ finance.deliveryCost === null ? "รอข้อมูลระยะทาง" : (finance.deliveryCost | number: "1.0-0") + " ฿" }}</strong></div>
+    <div class="finance-stat" [class.finance-loss]="finance.profit !== null && finance.profit < 0" [class.finance-profit]="finance.profit !== null && finance.profit >= 0">
+      <span>กำไรหลังหักต้นทุนและค่าส่ง</span>
+      <strong>{{ finance.profit === null ? "คำนวณไม่ได้" : (finance.profit | number: "1.0-0") + " ฿" }}</strong>
+    </div>
+  </div>
+  <p class="helper-note">คำนวณจากราคาขายจริงในออเดอร์ ต้นทุนอาหาร 40 บาทต่อกล่อง และค่าส่ง 15 บาทต่อรอบ + 2 บาทต่อกล่องต่อกิโลเมตรตามระยะทางถนนที่ได้จาก OSRM โดยประมาณเวลาที่ความเร็ว 30 กม./ชม.</p>
+  @if (finance.profit !== null && finance.profit < 0) {
+    <div class="alert error">แผนปัจจุบันมีแนวโน้มขาดทุน ลองกด “คำนวณเส้นทางใหม่” เพื่อเปรียบเทียบแผนแบ่งงานและระยะทางอีกครั้ง</div>
+  }
+  <div class="route-finance-table-wrap">
+    <table class="route-finance-table">
+      <thead><tr><th>ไรเดอร์</th><th>ออเดอร์</th><th>กล่อง</th><th>ระยะทางถนน</th><th>เวลาโดยประมาณ</th><th>ถึงประมาณ</th><th>ค่าส่ง</th><th>กำไรสุทธิ</th></tr></thead>
+      <tbody>
+        @for (route of financeRoutes(); track route.riderNumber) {
+          <tr>
+            <td><span class="finance-rider"><i [style.background]="route.color"></i>ไรเดอร์ {{ route.riderNumber }}</span></td>
+            <td>{{ route.orders.length }}</td><td>{{ route.totalBoxes }}</td>
+            <td>{{ routeRoadInfo(route)?.error || !routeRoadInfo(route) ? "รอข้อมูล" : (routeRoadInfo(route)!.distanceKm | number: "1.1-2") + " กม." }}</td>
+            <td>{{ estimatedMinutes(route) === null ? "รอข้อมูล" : estimatedMinutes(route) + " นาที" }}</td>
+            <td>{{ estimatedArrival(route) ?? "—" }}</td>
+            <td>{{ routeFinance(route).deliveryCost === null ? "—" : (routeFinance(route).deliveryCost | number: "1.0-0") + " ฿" }}</td>
+            <td [class.finance-loss-text]="routeFinance(route).profit !== null && routeFinance(route).profit! < 0">{{ routeFinance(route).profit === null ? "—" : (routeFinance(route).profit | number: "1.0-0") + " ฿" }}</td>
+          </tr>
+        }
+        <tr class="finance-total-row">
+          <th>{{ mapMode() === 'all' ? 'รวมทุกเส้นทาง' : 'รวมเส้นทางไรเดอร์ ' + selectedRider() }}</th>
+          <th>{{ finance.orderCount }} ออเดอร์</th>
+          <th>{{ finance.totalBoxes }}</th>
+          <th>{{ finance.distanceKm === null ? "รอข้อมูล" : (finance.distanceKm | number: "1.1-2") + " กม." }}</th>
+          <th>—</th><th>—</th>
+          <th>{{ finance.deliveryCost === null ? "รอข้อมูล" : (finance.deliveryCost | number: "1.0-0") + " ฿" }}</th>
+          <th [class.finance-loss-text]="finance.profit !== null && finance.profit < 0">{{ finance.profit === null ? "—" : (finance.profit | number: "1.0-0") + " ฿" }}</th>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  @if (planner.plan().routes.length) {
+    @if (allRoutesMeetDeadline()) {
+      <div class="alert success">เวลาโดยประมาณของทุกเส้นทางอยู่ภายใน 12:30 น. (ยังขึ้นอยู่กับสภาพจราจรจริง)</div>
+    } @else {
+      <div class="alert error">มีเส้นทางที่คาดว่าจะเกิน 12:30 น. หรือยังคำนวณเวลาไม่ได้ ควรเพิ่มไรเดอร์/ปรับแผนก่อนปล่อยส่ง</div>
+    }
+  }
+  <p class="helper-note">เมื่อเลือก “ภาพรวมทุกเส้นทาง” ยอดค่าใช้จ่ายจะรวมทุกไรเดอร์ แต่เมื่อเลือก “เฉพาะไรเดอร์ที่เลือก” ยอดขาย ต้นทุน ค่าส่ง ระยะทาง และกำไรจะแสดงเฉพาะเส้นทางของไรเดอร์คนนั้น</p>
+</section>
+
+@if (planner.plan().invalidOrders.length) {
+  <section class="alert error">
+    มี {{ planner.plan().invalidOrders.length }} ออเดอร์ที่ยังจัดเส้นทางไม่ได้ เพราะพิกัดไม่ถูกต้อง
+    <a class="text-link" routerLink="/customers">ตรวจสอบข้อมูลลูกค้า →</a>
+  </section>
+}

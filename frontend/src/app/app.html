@@ -1,0 +1,17 @@
+@if (!isRiderPage()) {
+<header class="topbar">
+  <a class="brand" routerLink="/"
+    ><span class="brand-mark">ก</span><span><strong>ส่งด่วนมื้อเที่ยง</strong><small>ระบบจัดการร้านอาหาร</small></span></a
+  >
+  <nav>
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">ภาพรวม</a
+    ><a routerLink="/customers" routerLinkActive="active">ลูกค้า</a
+    ><a routerLink="/orders" routerLinkActive="active">ออเดอร์</a>
+    <a routerLink="/sheets" routerLinkActive="active">ใบงานไรเดอร์</a>
+  </nav>
+  <span class="api-indicator" [class.offline]="!api.online()"
+    ><i></i>{{ api.online() ? "เชื่อมต่อแล้ว" : "รอเชื่อมต่อ API" }}</span
+  >
+</header>
+}
+<main class="page-shell" [class.rider-shell]="isRiderPage()"><router-outlet /></main>

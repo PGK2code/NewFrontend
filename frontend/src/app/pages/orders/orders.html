@@ -1,0 +1,152 @@
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">ORDER MANAGEMENT</span>
+    <h1>จัดการออเดอร์</h1>
+    <p>รับรายการอาหาร ติดตามสถานะ และปรับจำนวนที่สั่ง</p>
+  </div>
+  <button class="button button-primary" (click)="openCreate()">＋ สร้างออเดอร์</button>
+</section>
+@if (notice()) {
+  <div class="alert" [class.error]="isError()">{{ notice() }}<button (click)="notice.set('')">×</button></div>
+}
+<section class="order-summary">
+  <article>
+    <span>ออเดอร์ทั้งหมด</span><strong>{{ orders().length }}</strong>
+  </article>
+  <article>
+    <span>รอจัดส่ง</span><strong>{{ queuedCount() }}</strong>
+  </article>
+  <article>
+    <span>จำนวนกล่องรวม</span><strong>{{ boxCount() }}</strong>
+  </article>
+  <article>
+    <span>ยอดขายรวม</span><strong>{{ sales() | number: "1.0-0" }} ฿</strong>
+  </article>
+</section>
+<section class="panel order-panel">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">ALL ORDERS</span>
+      <h2>รายการออเดอร์</h2>
+    </div>
+    <div class="toolbar">
+      <button class="button button-light" (click)="simulate()" [disabled]="busy()">⤨ จำลอง 20 ออเดอร์</button
+      ><button class="button button-light danger-text" (click)="clearSimulated()" [disabled]="busy()">
+        ล้างออเดอร์จำลอง
+      </button>
+    </div>
+  </div>
+  @if (orders().length) {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ออเดอร์</th>
+            <th>ลูกค้า</th>
+            <th>รายการอาหาร</th>
+            <th>วันและเวลา</th>
+            <th>สถานะ</th>
+            <th>ยอดรวม</th>
+            <th class="align-right">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of orders(); track order.order_id) {
+            <tr>
+              <td>
+                <strong class="order-id">#{{ order.order_id }}</strong
+                ><small>{{ order.total_boxes }} กล่อง</small>
+              </td>
+              <td>
+                <div class="customer-name">{{ order.customer_name }}</div>
+                <small>{{ order.phone_number }}</small>
+              </td>
+              <td>
+                <div class="order-items">
+                  @for (item of order.items; track item.order_detail_id) {
+                    <div class="item-line">
+                      <span>{{ item.food_name }}</span>
+                      <div class="quantity-control">
+                        <button (click)="change(order, item, -1)" [disabled]="item.quantity <= 1">−</button
+                        ><strong>{{ item.quantity }}</strong
+                        ><button (click)="change(order, item, 1)" [disabled]="item.quantity >= 3">＋</button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </td>
+              <td>{{ order.order_date | date: "d MMM yy, HH:mm" }}</td>
+              <td>
+                <span class="status-pill" [class.simulated]="order.status === 'simulated'">{{
+                  statusLabel(order.status)
+                }}</span>
+              </td>
+              <td>
+                <strong>{{ order.total_sales | number: "1.0-0" }} ฿</strong>
+              </td>
+              <td class="actions align-right">
+                <button class="icon-button danger-icon" title="ลบออเดอร์" (click)="remove(order)">⌫</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty-state tall">
+      ยังไม่มีออเดอร์ในระบบ<br /><button class="button button-primary" (click)="openCreate()">สร้างออเดอร์แรก</button>
+    </div>
+  }
+</section>
+<p class="helper-note">* จำนวนอาหารต่อเมนูปรับได้ตั้งแต่ 1–3 กล่อง ตามข้อจำกัดของระบบ</p>
+@if (creating()) {
+  <div class="modal-backdrop" (click)="closeCreate()">
+    <section class="modal order-modal" (click)="$event.stopPropagation()">
+      <div class="modal-heading">
+        <div>
+          <span class="eyebrow">NEW ORDER</span>
+          <h2>สร้างออเดอร์ใหม่</h2>
+        </div>
+        <button class="icon-button" (click)="closeCreate()">×</button>
+      </div>
+      <form (ngSubmit)="create()">
+        <label
+          >เลือกลูกค้า<select name="customer" required [(ngModel)]="customerId">
+            <option [ngValue]="null" disabled>เลือกลูกค้าจากรายชื่อ</option>
+            @for (c of customers(); track c.customer_id) {
+              <option [ngValue]="c.customer_id">{{ c.first_name }} {{ c.last_name }} · {{ c.phone_number }}</option>
+            }
+          </select></label
+        ><label
+          >เลือกเมนู<select name="food" required [(ngModel)]="foodId">
+            <option [ngValue]="null" disabled>เลือกอาหารที่สั่ง</option>
+            @for (food of foods(); track food.food_id) {
+              <option [ngValue]="food.food_id">{{ food.name }} · {{ food.price }} บาท</option>
+            }
+          </select></label
+        ><label
+          >จำนวนกล่อง<select name="quantity" [(ngModel)]="quantity">
+            <option [ngValue]="1">1 กล่อง</option>
+            <option [ngValue]="2">2 กล่อง</option>
+            <option [ngValue]="3">3 กล่อง</option>
+          </select></label
+        >
+        @if (!customers().length || !foods().length) {
+          <div class="inline-error">ต้องมีข้อมูลลูกค้าและเมนูอย่างน้อยอย่างละหนึ่งรายการก่อนสร้างออเดอร์</div>
+        }
+        @if (notice()) {
+          <div class="inline-error">{{ notice() }}</div>
+        }
+        <div class="order-total">
+          <span>ยอดชำระ</span><strong>{{ selectedPrice() * quantity | number: "1.0-0" }} ฿</strong>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="button button-light" (click)="closeCreate()">ยกเลิก</button
+          ><button class="button button-primary" [disabled]="busy() || !customers().length || !foods().length">
+            {{ busy() ? "กำลังบันทึก..." : "บันทึกออเดอร์" }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

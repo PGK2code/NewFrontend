@@ -1,0 +1,138 @@
+<section class="page-heading rider-page-heading">
+  <div>
+    <span class="eyebrow">RIDER DELIVERY LOOKUP</span>
+    <h1>ค้นหาใบงานจัดส่ง</h1>
+    <p>กรอกเลขใบงานเพื่อดูรายการออเดอร์และจุดส่งที่ต้องดำเนินการ</p>
+  </div>
+  <div class="toolbar">
+    <a class="button button-light" routerLink="/sheets">กลับไปหน้าใบงาน</a>
+  </div>
+</section>
+
+<section class="panel rider-lookup-panel">
+  <form class="rider-lookup-form" (ngSubmit)="search()">
+    <label for="rider-work-id">เลขใบงาน</label>
+    <div class="rider-lookup-controls">
+      <input
+        id="rider-work-id"
+        name="workId"
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
+        placeholder="เช่น 105"
+        [(ngModel)]="workId"
+        [disabled]="loading()"
+        required
+      />
+      <button class="button button-primary" type="submit" [disabled]="loading()">
+        {{ loading() ? 'กำลังค้นหา...' : 'ค้นหาใบงาน' }}
+      </button>
+    </div>
+    <small>กรอกเลขใบงานที่ได้รับ เพื่อเปิดดูรายละเอียดเฉพาะใบงานนั้น</small>
+  </form>
+  @if (error()) {
+    <div class="alert error rider-lookup-error" role="alert">{{ error() }}</div>
+  }
+  @if (actionMessage()) {
+    <div class="alert success rider-lookup-success" role="status">{{ actionMessage() }}</div>
+  }
+</section>
+
+@if (loading()) {
+  <section class="panel empty-state tall">กำลังค้นหาใบงาน...</section>
+} @else if (work(); as currentWork) {
+  <article class="panel rider-work-card rider-lookup-result" [style.--route-color]="currentWork.route_color">
+    <header class="rider-work-heading">
+      <div class="rider-work-title">
+        <span class="rider-work-id">{{ currentWork.work_id }}</span>
+        <div>
+          <span class="eyebrow">WORK ID · ใบงาน</span>
+          <h2>ใบงาน #{{ currentWork.work_id }}</h2>
+          <small>{{ currentWork.rider_name || ('ไรเดอร์รหัส ' + currentWork.rider_id) }}</small>
+        </div>
+      </div>
+      <div class="rider-work-meta">
+        <span>{{ currentWork.orders.length }} ออเดอร์ที่ต้องส่ง</span>
+        <span>{{ currentWork.total_boxes }} กล่อง</span>
+        <span>{{ currentWork.total_sales | number: '1.0-0' }} ฿</span>
+      </div>
+    </header>
+
+    @if (currentWork.orders.length === 0) {
+      <section class="rider-no-active-orders">
+        <strong>ใบงานนี้ไม่มีออเดอร์ที่ต้องจัดส่งแล้ว</strong>
+        <small>ออเดอร์ในใบงานนี้อาจถูกจัดส่งครบหรือถูกยกเลิกแล้ว</small>
+      </section>
+    } @else {
+      <ol class="rider-delivery-stops">
+        @for (order of currentWork.orders; track order.order_id; let i = $index) {
+          <li class="rider-delivery-stop">
+            <div class="rider-stop-marker" [style.background]="currentWork.route_color">{{ i + 1 }}</div>
+            <div class="rider-stop-content">
+              <div class="rider-stop-topline">
+                <div>
+                  <span class="rider-stop-label">จุดส่งที่ {{ i + 1 }} · ออเดอร์ #{{ order.order_id }}</span>
+                  <h3>{{ order.customer_name }}</h3>
+                </div>
+                <span class="status-pill" [ngClass]="statusClass(order.status)">{{ statusLabel(order.status) }}</span>
+              </div>
+
+              <div class="rider-stop-contact">
+                <span class="rider-contact-icon">⌖</span>
+                <span>{{ order.address?.trim() || 'ไม่มีข้อมูลที่อยู่ กรุณาเปิดแผนที่จากพิกัด' }}</span>
+              </div>
+              <div class="rider-stop-actions">
+                @if (order.phone_number) {
+                  <a class="rider-action-link" [href]="phoneUrl(order.phone_number)">โทร {{ order.phone_number }}</a>
+                }
+                <a class="rider-action-link rider-map-action" [href]="mapUrl(order)" target="_blank" rel="noopener noreferrer">เปิดนำทาง Google Maps ↗</a>
+              </div>
+              <button
+                class="button button-primary rider-delivered-button"
+                type="button"
+                [disabled]="completingOrderId() !== null"
+                (click)="markDelivered(order)"
+              >
+                {{ completingOrderId() === order.order_id ? 'กำลังบันทึก...' : 'ส่งออเดอร์แล้ว' }}
+              </button>
+
+              <div class="rider-order-detail">
+                <div class="rider-order-items">
+                  <strong>รายการที่ต้องนำไปส่ง</strong>
+                  @for (item of orderItems(order); track item.order_detail_id) {
+                    <div class="rider-order-item">
+                      <span>{{ item.food_name }}</span>
+                      <b>× {{ item.quantity }}</b>
+                    </div>
+                  }
+                  @if (!orderItems(order).length) {
+                    <small>ไม่มีรายละเอียดรายการอาหาร</small>
+                  }
+                </div>
+                <div class="rider-order-total">
+                  <span>จำนวนกล่อง</span><strong>{{ order.total_boxes }}</strong>
+                  <span>ยอดออเดอร์</span><strong>{{ order.total_sales | number: '1.0-0' }} ฿</strong>
+                </div>
+              </div>
+            </div>
+          </li>
+        }
+      </ol>
+    }
+  </article>
+} @else if (searched() && !error()) {
+  <section class="panel empty-state tall rider-empty-state">
+    <strong>ไม่พบข้อมูลใบงาน</strong>
+    <small>กรุณาตรวจสอบเลขใบงาน แล้วค้นหาอีกครั้ง</small>
+  </section>
+} @else if (!searched()) {
+  <section class="panel empty-state tall rider-search-hint">
+    <span class="rider-empty-icon">⌕</span>
+    <strong>กรอกเลขใบงานเพื่อเริ่มค้นหา</strong>
+    <small>รายละเอียดลูกค้า รายการอาหาร และลำดับการจัดส่งจะแสดงหลังจากค้นหาใบงานสำเร็จ</small>
+  </section>
+}
+
+@if (lastUpdated()) {
+  <p class="rider-updated-at">อัปเดตข้อมูลล่าสุด {{ lastUpdated() | date: 'dd/MM/yyyy HH:mm:ss' }}</p>
+}
